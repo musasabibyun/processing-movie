@@ -29,9 +29,13 @@ float ROTATION_SPEED = 0.05;
 
 // 1:52のタイムスタンプ（ミリ秒）
 int ANIMATION_CHANGE_TIME = 112000; // 1:52 = 112秒
-// int ANIMATION_CHANGE_TIME = 10000;
-
+// int ANIMATION_CHANGE_TIME = 10000; // for debug
 boolean animationChanged = false; // アニメーション変更フラグ
+
+// 3:40のタイムスタンプ（形状の出現を停止する時間）
+int ANIMATION_END_TIME = 220000; // 3:40 = 220秒
+// int ANIMATION_END_TIME = 15000; // for debug
+boolean shapesEndingPhase = false; // 形状出現停止フラグ
 
 // 市松模様の点滅効果用
 boolean checkerboardFlashing = false;
@@ -248,6 +252,11 @@ void draw() {
     strokeWeight(random(1, 12));
     ellipse(0, 0, circleSize[i], circleSize[i]);
     popMatrix();
+  }
+  
+  // 3:43以降は形状の出現を停止
+  if (currentTime >= ANIMATION_END_TIME && !shapesEndingPhase) {
+    shapesEndingPhase = true;
   }
   
   // saveFrame("../frames/######.tga");
@@ -542,17 +551,26 @@ class CenterFlowBackground extends RotatingBackground {
       // サイズ変更を頂点に適用
       shape.updateVerticesSize();
       
-      // 中央に到達したら画面外に戻す
+      // 中央に到達したら画面外に戻す、または非表示にする
       if (distToCenter < 15) {
-        float angle = random(TWO_PI);
-        float distance = width * (0.8 + random(0.5)); // 画面外へ
-        
-        shape.x = width/2 + cos(angle) * distance;
-        shape.y = height/2 + sin(angle) * distance;
-        shape.size = shape.initialSize; // サイズをリセット
-        
-        // 回転速度をランダムに再設定（常に新しい回転を適用）
-        shape.rotationSpeed = random(-0.2, 0.2);
+        // 3:43以降は形状を再表示しない
+        if (shapesEndingPhase) {
+          // 完全に非表示にする（画面外の遠くへ配置）
+          shape.x = -width * 10;
+          shape.y = -height * 10;
+          shape.size = 0;
+        } else {
+          // 通常通りリセット（画面外から再出現）
+          float angle = random(TWO_PI);
+          float distance = width * (0.8 + random(0.5)); // 画面外へ
+          
+          shape.x = width/2 + cos(angle) * distance;
+          shape.y = height/2 + sin(angle) * distance;
+          shape.size = shape.initialSize; // サイズをリセット
+          
+          // 回転速度をランダムに再設定
+          shape.rotationSpeed = random(-0.2, 0.2);
+        }
         
         shape.updateVerticesSize(); // 頂点を更新
       }
