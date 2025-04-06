@@ -28,8 +28,9 @@ boolean fading = false; // フェード中かどうか
 float ROTATION_SPEED = 0.05;
 
 // 1:52のタイムスタンプ（ミリ秒）
-// int ANIMATION_CHANGE_TIME = 112000; // 1:52 = 112秒
-int ANIMATION_CHANGE_TIME = 10000;
+int ANIMATION_CHANGE_TIME = 112000; // 1:52 = 112秒
+// int ANIMATION_CHANGE_TIME = 10000;
+
 boolean animationChanged = false; // アニメーション変更フラグ
 
 // 市松模様の点滅効果用
@@ -126,11 +127,6 @@ void draw() {
   // 市松模様の波打つ背景を描画
   drawWavyCheckerboard();
   
-  // デバッグ：5秒ごとに経過時間を表示
-  if (currentTime % 5000 < 100) {
-    println("Current time: " + currentTime + "ms, Target time: " + ANIMATION_CHANGE_TIME + "ms");
-  }
-  
   // 1:52以降のアニメーション変更
   if (currentTime >= ANIMATION_CHANGE_TIME && !animationChanged) {
     // アニメーション変更時の初期化
@@ -139,14 +135,10 @@ void draw() {
     // 点滅効果を開始
     checkerboardFlashing = true;
     flashStartTime = currentTime;
-    println("==== Starting flash effect at " + currentTime + "ms ====");
     
     // 形状数を増やした中央に向かうアニメーション用の新しい背景を準備
     background1 = new CenterFlowBackground(width, height, INCREASED_SHAPE_COUNT);
     background2 = new CenterFlowBackground(width, height, INCREASED_SHAPE_COUNT);
-    
-    println("==== ANIMATION CHANGED at time: " + currentTime + "ms ====");
-    println("New backgrounds created with center flow animation and " + INCREASED_SHAPE_COUNT + " shapes");
     
     // 背景を強制的に初期化
     for (BackgroundShape shape : background1.shapes) {
@@ -160,17 +152,6 @@ void draw() {
   // 背景の更新
   background1.update();
   background2.update();
-  
-  // 10秒に1回、形状のサイズをログに出力（デバッグ用）
-  if (currentTime % 10000 < 100 && animationChanged) {
-    println("--- Current shape sizes ---");
-    for (int i = 0; i < 3; i++) { // 最初の3つの形状のみ表示
-      BackgroundShape shape = background1.shapes[i];
-      println("Shape " + i + ": size=" + shape.size + 
-              ", initialSize=" + shape.initialSize + 
-              ", distToCenter=" + dist(shape.x, shape.y, width/2, height/2));
-    }
-  }
   
   // 背景を描画
   if (animationChanged) {
@@ -269,7 +250,7 @@ void draw() {
     popMatrix();
   }
   
-  saveFrame("../frames/######.tga");
+  // saveFrame("../frames/######.tga");
 }
 
 // 波打つ市松模様の背景を描画する関数
@@ -495,7 +476,6 @@ class CenterFlowBackground extends RotatingBackground {
     super(w, h);
     // 画面の外側から形状を開始するように初期化
     resetShapesPositions();
-    println("CenterFlowBackground initialized with " + shapes.length + " shapes");
   }
   
   // 形状数を指定できるコンストラクタを追加
@@ -503,7 +483,6 @@ class CenterFlowBackground extends RotatingBackground {
     super(w, h, shapeCount);
     // 画面の外側から形状を開始するように初期化
     resetShapesPositions();
-    println("CenterFlowBackground initialized with " + shapes.length + " shapes");
   }
   
   void resetShapesPositions() {
@@ -527,10 +506,6 @@ class CenterFlowBackground extends RotatingBackground {
       
       // サイズ変更を適用
       shapes[i].updateVerticesSize();
-      
-      // デバッグ情報
-      println("Shape " + i + " initialized at (" + shapes[i].x + ", " + shapes[i].y + 
-              ") with size " + shapes[i].size + " and speed " + shapes[i].moveSpeed);
     }
   }
 
@@ -540,9 +515,6 @@ class CenterFlowBackground extends RotatingBackground {
       // 回転処理の強化 - 回転速度を増加
       float rotationAmount = radians(shape.rotationSpeed * 3); // 回転速度を3倍に
       shape.rotate(rotationAmount);
-      if (frameCount % 120 == 0) {
-        println("Shape rotation speed: " + shape.rotationSpeed + ", current angle: " + degrees(shape.rotation));
-      }
       
       // 中央までの距離を計算
       float distX = width/2 - shape.x;
@@ -562,16 +534,9 @@ class CenterFlowBackground extends RotatingBackground {
         float maxDist = sqrt(width*width + height*height) * 0.6;
         
         // サイズを距離に応じて調整（中央に近いほど小さく）
-        float scaleFactor = map(distToCenter, 0, maxDist, 0.1, 1.0);
+        float scaleFactor = map(distToCenter, 0, maxDist, 0.2, 1.0);
         scaleFactor = constrain(scaleFactor, 0.0, 1.0); // 0〜1の範囲に制限
         shape.size = shape.initialSize * scaleFactor;
-        
-        // デバッグ出力
-        if (frameCount % 60 == 0) { // ログ頻度を下げる
-          println("Shape at dist=" + nf(distToCenter, 0, 1) + 
-                  ", rot=" + nf(degrees(shape.rotation), 0, 1) + 
-                  "°, speed=" + nf(shape.rotationSpeed, 0, 2));
-        }
       }
       
       // サイズ変更を頂点に適用
@@ -590,7 +555,6 @@ class CenterFlowBackground extends RotatingBackground {
         shape.rotationSpeed = random(-0.2, 0.2);
         
         shape.updateVerticesSize(); // 頂点を更新
-        println("Shape reset with new rotation speed: " + shape.rotationSpeed);
       }
     }
   }
