@@ -314,6 +314,9 @@ class CenterFlowBackground extends RotatingBackground {
       // 移動速度を形状ごとに設定（多様性を持たせるために広い範囲）
       shapes[i].moveSpeed = random(MIN_ABSORB_SPEED, MAX_ABSORB_SPEED);
       
+      // 回転速度を強化
+      shapes[i].rotationSpeed = random(-0.2, 0.2);
+      
       // 初期サイズを大きめに設定
       shapes[i].initialSize = random(150, 450);
       shapes[i].size = shapes[i].initialSize;
@@ -330,6 +333,13 @@ class CenterFlowBackground extends RotatingBackground {
   // 各形状を更新（回転と移動）
   void update() {
     for (BackgroundShape shape : shapes) {
+      // 回転処理の強化 - 回転速度を増加
+      float rotationAmount = radians(shape.rotationSpeed * 3); // 回転速度を3倍に
+      shape.rotate(rotationAmount);
+      if (frameCount % 120 == 0) {
+        println("Shape rotation speed: " + shape.rotationSpeed + ", current angle: " + degrees(shape.rotation));
+      }
+      
       // 中央までの距離を計算
       float distX = width/2 - shape.x;
       float distY = height/2 - shape.y;
@@ -348,25 +358,22 @@ class CenterFlowBackground extends RotatingBackground {
         float maxDist = sqrt(width*width + height*height) * 0.6;
         
         // サイズを距離に応じて調整（中央に近いほど小さく）
-        // 注意: map関数は(値, 入力範囲の下限, 入力範囲の上限, 出力範囲の下限, 出力範囲の上限)
-        // 距離が0（中央）では0%になり、最大距離では100%になるようにマッピング
         float scaleFactor = map(distToCenter, 0, maxDist, 0.0, 1.0);
         scaleFactor = constrain(scaleFactor, 0.0, 1.0); // 0〜1の範囲に制限
         shape.size = shape.initialSize * scaleFactor;
         
-        // デバッグ出力を追加
-        if (frameCount % 30 == 0) { // 30フレームに1回だけログ出力
-          println("Shape at dist=" + distToCenter + ", scale=" + scaleFactor + ", size=" + shape.size);
+        // デバッグ出力
+        if (frameCount % 60 == 0) { // ログ頻度を下げる
+          println("Shape at dist=" + nf(distToCenter, 0, 1) + 
+                  ", rot=" + nf(degrees(shape.rotation), 0, 1) + 
+                  "°, speed=" + nf(shape.rotationSpeed, 0, 2));
         }
       }
-      
-      // 回転の更新（サイズ変更の後に行う）
-      shape.rotate(radians(shape.rotationSpeed));
       
       // サイズ変更を頂点に適用
       shape.updateVerticesSize();
       
-      // 中央に到達したら画面外に戻す（しきい値を少し小さく）
+      // 中央に到達したら画面外に戻す
       if (distToCenter < 15) {
         float angle = random(TWO_PI);
         float distance = width * (0.8 + random(0.5)); // 画面外へ
@@ -374,9 +381,12 @@ class CenterFlowBackground extends RotatingBackground {
         shape.x = width/2 + cos(angle) * distance;
         shape.y = height/2 + sin(angle) * distance;
         shape.size = shape.initialSize; // サイズをリセット
-        shape.updateVerticesSize(); // 頂点を更新
         
-        println("Shape reset to position (" + shape.x + ", " + shape.y + ") with size " + shape.size);
+        // 回転速度をランダムに再設定（常に新しい回転を適用）
+        shape.rotationSpeed = random(-0.2, 0.2);
+        
+        shape.updateVerticesSize(); // 頂点を更新
+        println("Shape reset with new rotation speed: " + shape.rotationSpeed);
       }
     }
   }
@@ -451,7 +461,7 @@ class BackgroundShape {
     size = random(50, 300);
     initialSize = size; // 初期サイズを保存
     rotation = random(TWO_PI);
-    rotationSpeed = random(-0.05, 0.05);
+    rotationSpeed = random(-0.2, 0.2); // 回転速度を強化
     
     float alpha = random(100, 200);
     
@@ -501,6 +511,9 @@ class BackgroundShape {
   }
   
   void draw(PGraphics pg) {
+    // もし形状のサイズが極めて小さい場合はスキップ（最適化）
+    if (size < 2) return;
+    
     // 影の描画
     pg.fill(BG_SHADOW_COLOR, shadowAlpha);
     pg.noStroke();
@@ -512,9 +525,18 @@ class BackgroundShape {
     
     // 形状の描画
     pg.fill(shapeColor);
+    
+    // 目立たせるためにストロークを追加（オプション）
+    if (size > 100) {
+      pg.stroke(0, 30); // 薄い黒色の輪郭
+      pg.strokeWeight(2);
+    } else {
+      pg.noStroke();
+    }
+    
     pg.pushMatrix();
     pg.translate(x, y);
-    pg.rotate(rotation);
+    pg.rotate(rotation); // 回転を適用
     drawVertices(pg);
     pg.popMatrix();
   }
