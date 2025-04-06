@@ -38,6 +38,10 @@ color BG_RED_COLOR = color(220, 50, 50);
 color BG_PINK_COLOR = color(255, 182, 193);
 color BG_SHADOW_COLOR = color(50, 50, 50);
 
+// 市松模様の色
+color CHECKER_WHITE = color(255, 255, 255);
+color CHECKER_GRAY = color(220, 220, 220);
+
 // 中央円のグラデーション色
 color CENTER_RED_COLOR = color(213, 33, 17);
 color CENTER_PINK_COLOR = color(228, 173, 224);
@@ -49,6 +53,7 @@ boolean useFirstBackground = true;
 // 回転可能な背景クラス
 RotatingBackground background1;
 RotatingBackground background2;
+float time = 0; // アニメーション用の時間変数
 
 void setup() {
   size(1920, 1080, P3D);
@@ -91,6 +96,12 @@ void setup() {
 
 void draw() {
   background(255);
+  
+  // 時間を更新
+  time += 0.01;
+  
+  // 市松模様の波打つ背景を描画
+  drawWavyCheckerboard();
   
   // 背景の回転を更新
   background1.update();
@@ -189,6 +200,42 @@ void draw() {
   saveFrame("../frames/######.tga");
 }
 
+// 波打つ市松模様の背景を描画する関数
+void drawWavyCheckerboard() {
+  int cellSize = 80; // 市松模様の1マスのサイズ
+  
+  // 市松模様のマスを描画
+  noStroke();
+  for (int x = 0; x < width; x += cellSize) {
+    for (int y = 0; y < height; y += cellSize) {
+      // 中心からの距離を計算
+      float distX = x - width/2;
+      float distY = y - height/2;
+      float dist = sqrt(distX*distX + distY*distY);
+      
+      // 同心円状の波を作成（時間とともに外側に広がる）
+      float wavePhase = dist * 0.05 - time * 2;
+      float waveAmplitude = 8.0;
+      float wave = sin(wavePhase) * waveAmplitude;
+      
+      // 中心からの方向に基づいて波の効果を適用
+      float angle = atan2(distY, distX);
+      float posX = x + cos(angle) * wave;
+      float posY = y + sin(angle) * wave;
+      
+      // 市松模様の色を交互に切り替え
+      if ((int)(x/cellSize + y/cellSize) % 2 == 0) {
+        fill(CHECKER_WHITE);
+      } else {
+        fill(CHECKER_GRAY);
+      }
+      
+      // マスを描画
+      rect(posX, posY, cellSize, cellSize);
+    }
+  }
+}
+
 // 回転する背景を管理するクラス
 class RotatingBackground {
   int numShapes = 20;
@@ -209,7 +256,7 @@ class RotatingBackground {
   
   void draw(PGraphics pg) {
     pg.beginDraw();
-    pg.background(255);
+    pg.background(255, 200); // 背景を半透明に変更して下の市松模様が見えるようにする
     
     for (BackgroundShape shape : shapes) {
       shape.draw(pg);
@@ -240,7 +287,7 @@ class BackgroundShape {
     float alpha = random(100, 200);
     
     // 一定の確率で青を混ぜる
-    if (random(100) < 5) {
+    if (random(100) < 3) {
       shapeColor = color(red(BLUE_COLOR), green(BLUE_COLOR), blue(BLUE_COLOR), alpha);
     } else {
       // 通常はピンク/赤系のグラデーションから選択
