@@ -32,7 +32,7 @@ void setup() {
   frameRate(30);
   
   minim = new Minim(this);
-  player = minim.loadFile("../ERRORMIX済.wav");
+  player = minim.loadFile("../error.wav");
   player.play();
   startTime = millis();
 
