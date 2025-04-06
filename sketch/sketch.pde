@@ -27,13 +27,13 @@ boolean fading = false; // フェード中かどうか
 // 背景回転速度（度/フレーム）
 float ROTATION_SPEED = 0.05;
 
-// 1:52のタイムスタンプ（ミリ秒）
-int ANIMATION_CHANGE_TIME = 112000; // 1:52 = 112秒
+// 2:49のタイムスタンプ（ミリ秒）
+int ANIMATION_CHANGE_TIME = 169000; // 2:49 = 169秒
 // int ANIMATION_CHANGE_TIME = 10000; // for debug
 boolean animationChanged = false; // アニメーション変更フラグ
 
-// 3:40のタイムスタンプ（形状の出現を停止する時間）
-int ANIMATION_END_TIME = 220000; // 3:40 = 220秒
+// 3:10のタイムスタンプ（形状の出現を停止する時間）
+int ANIMATION_END_TIME = 200000; // 3:20 = 200秒
 // int ANIMATION_END_TIME = 15000; // for debug
 boolean shapesEndingPhase = false; // 形状出現停止フラグ
 
@@ -259,7 +259,7 @@ void draw() {
     shapesEndingPhase = true;
   }
   
-  // saveFrame("../frames/######.tga");
+  saveFrame("../frames/######.tga");
 }
 
 // 波打つ市松模様の背景を描画する関数
