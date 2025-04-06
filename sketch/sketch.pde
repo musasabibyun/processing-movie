@@ -32,6 +32,13 @@ float ROTATION_SPEED = 0.05;
 int ANIMATION_CHANGE_TIME = 10000;
 boolean animationChanged = false; // アニメーション変更フラグ
 
+// 市松模様の点滅効果用
+boolean checkerboardFlashing = false;
+int flashStartTime = 0;
+// 点滅パターンの設定
+float flashFrequency = 0.05; // 基本の点滅確率（0-1）
+float flashPulseSpeed = 0.05; // 点滅の脈動速度（値が大きいほど速く点滅）
+
 // 色の定数
 color BLUE_COLOR = color(17, 88, 122);
 color BLACK_COLOR = color(0, 0, 0);
@@ -124,6 +131,11 @@ void draw() {
   if (currentTime >= ANIMATION_CHANGE_TIME && !animationChanged) {
     // アニメーション変更時の初期化
     animationChanged = true;
+    
+    // 点滅効果を開始
+    checkerboardFlashing = true;
+    flashStartTime = currentTime;
+    println("==== Starting flash effect at " + currentTime + "ms ====");
     
     // 中央に向かうアニメーション用の新しい背景を準備
     background1 = new CenterFlowBackground(width, height);
@@ -279,11 +291,35 @@ void drawWavyCheckerboard() {
       float posX = x + cos(angle) * wave;
       float posY = y + sin(angle) * wave;
       
-      // 市松模様の色を交互に切り替え
-      if ((int)(x/cellSize + y/cellSize) % 2 == 0) {
-        fill(CHECKER_WHITE);
+      // 点滅効果が有効な場合、ランダムに青色のマスを表示
+      boolean isFlashing = false;
+      if (checkerboardFlashing) {
+        // 時間に基づく波のような点滅パターンを生成（脈動効果）
+        float timeFactor = (millis() - startTime - flashStartTime) * 0.001; // 秒単位
+        
+        // sin関数を使って脈動効果を作成（0.2〜0.6の範囲で点滅確率が変動）
+        float pulseEffect = sin(timeFactor * flashPulseSpeed) * 0.5 + 0.5; // 0〜1の範囲
+        float currentFlashFreq = flashFrequency * (0.4 + pulseEffect * 0.6); // 基本値の40%〜100%
+        
+        // セルごとにランダムな確率で点滅（位置によって確率を変える）
+        float distFactor = 1.0 - (dist(x, y, width/2, height/2) / (width * 0.7));
+        distFactor = constrain(distFactor, 0, 1);
+        
+        // 中心に近いほど点滅しやすくする
+        isFlashing = random(1) < (currentFlashFreq * (0.5 + distFactor * 0.5));
+      }
+      
+      // 色を選択
+      if (isFlashing) {
+        // 点滅時は青色
+        fill(BLUE_COLOR);
       } else {
-        fill(CHECKER_GRAY);
+        // 通常の市松模様
+        if ((int)(x/cellSize + y/cellSize) % 2 == 0) {
+          fill(CHECKER_WHITE);
+        } else {
+          fill(CHECKER_GRAY);
+        }
       }
       
       // マスを描画
