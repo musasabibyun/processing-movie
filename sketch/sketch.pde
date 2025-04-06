@@ -27,6 +27,21 @@ boolean fading = false; // フェード中かどうか
 // 背景回転速度（度/フレーム）
 float ROTATION_SPEED = 0.05;
 
+// 色の定数
+color BLUE_COLOR = color(17, 88, 122);
+color BLACK_COLOR = color(0, 0, 0);
+color RED_COLOR = color(255, 0, 0);
+color PINK_COLOR = color(225, 174, 199);
+
+// 背景形状の色
+color BG_RED_COLOR = color(220, 50, 50);
+color BG_PINK_COLOR = color(255, 182, 193);
+color BG_SHADOW_COLOR = color(50, 50, 50);
+
+// 中央円のグラデーション色
+color CENTER_RED_COLOR = color(213, 33, 17);
+color CENTER_PINK_COLOR = color(228, 173, 224);
+
 // 背景用のPGraphicsオブジェクト
 PGraphics bg1, bg2;
 boolean useFirstBackground = true;
@@ -135,7 +150,7 @@ void draw() {
   }
   
   if (musicStarted) {
-    fill(lerpColor(color(213, 33, 17), color(228, 173, 224), map(fft.getBand(0), 0, 50, 0, 1)));
+    fill(lerpColor(CENTER_RED_COLOR, CENTER_PINK_COLOR, map(fft.getBand(0), 0, 50, 0, 1)));
     ellipse(0, 0, map(fft.getBand(0), 0, 50, 100, 400), map(fft.getBand(0), 0, 50, 100, 400));
   }
   
@@ -156,14 +171,14 @@ void draw() {
     rotateZ(circleRotZ[0] + rotationZ[i]);
     
     float colorProb = random(1);
-    if (colorProb < 0.1) {
-      stroke(0, 0, 0); // 黒色 (10%)
-    } else if (colorProb < 0.2) {
-      stroke(255, 0, 0); // 赤色 (10%)
+    if (colorProb < 0.05) {
+      stroke(BLACK_COLOR); // 黒色
+    } else if (colorProb < 0.15) {
+      stroke(RED_COLOR); // 赤色
     } else if (colorProb < 0.25) {
-      stroke(30, 81, 56); // ピンクの補色(緑色) (5%)
+      stroke(BLUE_COLOR); // 青
     } else {
-      stroke(225, 174, 199); // ピンク色 (75%)
+      stroke(PINK_COLOR); // ピンク色 (75%)
     }
     
     strokeWeight(random(1, 12));
@@ -223,7 +238,17 @@ class BackgroundShape {
     rotationSpeed = random(-0.05, 0.05);
     
     float alpha = random(100, 200);
-    shapeColor = lerpColor(color(220, 50, 50, int(alpha)), color(255, 182, 193, int(alpha)), random(1));
+    
+    // 一定の確率で青を混ぜる
+    if (random(100) < 5) {
+      shapeColor = color(red(BLUE_COLOR), green(BLUE_COLOR), blue(BLUE_COLOR), alpha);
+    } else {
+      // 通常はピンク/赤系のグラデーションから選択
+      color redWithAlpha = color(red(BG_RED_COLOR), green(BG_RED_COLOR), blue(BG_RED_COLOR), alpha);
+      color pinkWithAlpha = color(red(BG_PINK_COLOR), green(BG_PINK_COLOR), blue(BG_PINK_COLOR), alpha);
+      shapeColor = lerpColor(redWithAlpha, pinkWithAlpha, random(1));
+    }
+    
     shadowAlpha = alpha * 0.5;
     
     // 頂点を生成して保存
@@ -247,7 +272,7 @@ class BackgroundShape {
   
   void draw(PGraphics pg) {
     // 影の描画
-    pg.fill(50, 50, 50, shadowAlpha);
+    pg.fill(BG_SHADOW_COLOR, shadowAlpha);
     pg.noStroke();
     pg.pushMatrix();
     pg.translate(x + 10, y + 10); // 少しずらして影を描く
