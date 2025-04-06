@@ -27,6 +27,11 @@ boolean fading = false; // フェード中かどうか
 // 背景回転速度（度/フレーム）
 float ROTATION_SPEED = 0.05;
 
+// 1:52のタイムスタンプ（ミリ秒）
+// int ANIMATION_CHANGE_TIME = 112000; // 1:52 = 112秒
+int ANIMATION_CHANGE_TIME = 10000;
+boolean animationChanged = false; // アニメーション変更フラグ
+
 // 色の定数
 color BLUE_COLOR = color(17, 88, 122);
 color BLACK_COLOR = color(0, 0, 0);
@@ -54,6 +59,10 @@ boolean useFirstBackground = true;
 RotatingBackground background1;
 RotatingBackground background2;
 float time = 0; // アニメーション用の時間変数
+
+// 中央に向かう形状の速度範囲
+float MIN_ABSORB_SPEED = 1.5;
+float MAX_ABSORB_SPEED = 10.0;
 
 void setup() {
   size(1920, 1080, P3D);
@@ -97,52 +106,99 @@ void setup() {
 void draw() {
   background(255);
   
+  // 現在の経過時間を計算
+  int currentTime = millis() - startTime;
+  
   // 時間を更新
   time += 0.01;
   
   // 市松模様の波打つ背景を描画
   drawWavyCheckerboard();
   
-  // 背景の回転を更新
+  // デバッグ：5秒ごとに経過時間を表示
+  if (currentTime % 5000 < 100) {
+    println("Current time: " + currentTime + "ms, Target time: " + ANIMATION_CHANGE_TIME + "ms");
+  }
+  
+  // 1:52以降のアニメーション変更
+  if (currentTime >= ANIMATION_CHANGE_TIME && !animationChanged) {
+    // アニメーション変更時の初期化
+    animationChanged = true;
+    
+    // 中央に向かうアニメーション用の新しい背景を準備
+    background1 = new CenterFlowBackground(width, height);
+    background2 = new CenterFlowBackground(width, height);
+    
+    println("==== ANIMATION CHANGED at time: " + currentTime + "ms ====");
+    println("New backgrounds created with center flow animation");
+    
+    // 背景を強制的に初期化
+    for (BackgroundShape shape : background1.shapes) {
+      shape.updateVerticesSize();
+    }
+    for (BackgroundShape shape : background2.shapes) {
+      shape.updateVerticesSize();
+    }
+  }
+  
+  // 背景の更新
   background1.update();
   background2.update();
   
+  // 10秒に1回、形状のサイズをログに出力（デバッグ用）
+  if (currentTime % 10000 < 100 && animationChanged) {
+    println("--- Current shape sizes ---");
+    for (int i = 0; i < 3; i++) { // 最初の3つの形状のみ表示
+      BackgroundShape shape = background1.shapes[i];
+      println("Shape " + i + ": size=" + shape.size + 
+              ", initialSize=" + shape.initialSize + 
+              ", distToCenter=" + dist(shape.x, shape.y, width/2, height/2));
+    }
+  }
+  
   // 背景を描画
-  background1.draw(bg1);
-  background2.draw(bg2);
-  
-  int elapsedTime = millis() - lastBackgroundChangeTime;
-
-  if (!fading && elapsedTime > backgroundChangeInterval) {
-    fading = true; // フェード開始
-    lastBackgroundChangeTime = millis(); // 時間をリセット
+  if (animationChanged) {
+    // 1:52以降は新しいアニメーション
+    background1.draw(bg1);
+    image(bg1, 0, 0);
+  } else {
+    // 元のアニメーション（1:52まで）
+    background1.draw(bg1);
+    background2.draw(bg2);
     
-    // バックグラウンドの切り替え時に新しい方を再生成
-    if (useFirstBackground) {
-      background2 = new RotatingBackground(width, height);
-    } else {
-      background1 = new RotatingBackground(width, height);
+    int elapsedTime = millis() - lastBackgroundChangeTime;
+
+    if (!fading && elapsedTime > backgroundChangeInterval) {
+      fading = true; // フェード開始
+      lastBackgroundChangeTime = millis(); // 時間をリセット
+      
+      // バックグラウンドの切り替え時に新しい方を再生成
+      if (useFirstBackground) {
+        background2 = new RotatingBackground(width, height);
+      } else {
+        background1 = new RotatingBackground(width, height);
+      }
     }
-  }
 
-  // フェードが進行する
-  if (fading) {
-    float fadeProgress = map(elapsedTime, 0, backgroundChangeInterval, 0, 1);
-    fadeAmount = constrain(fadeProgress, 0, 1);
+    // フェードが進行する
+    if (fading) {
+      float fadeProgress = map(elapsedTime, 0, backgroundChangeInterval, 0, 1);
+      fadeAmount = constrain(fadeProgress, 0, 1);
 
-    if (fadeAmount >= 1) {
-      // フェードが終わったら背景を切り替え
-      useFirstBackground = !useFirstBackground;
-      fading = false; // フェード終了
+      if (fadeAmount >= 1) {
+        // フェードが終わったら背景を切り替え
+        useFirstBackground = !useFirstBackground;
+        fading = false; // フェード終了
+      }
     }
-  }
 
-  // 透明度を適用しながら2つの背景を描画
-  tint(255, 255 * (1 - fadeAmount));
-  image(useFirstBackground ? bg1 : bg2, 0, 0);
-  
-  tint(255, 255 * fadeAmount);
-  image(useFirstBackground ? bg2 : bg1, 0, 0);
+    // 透明度を適用しながら2つの背景を描画
+    tint(255, 255 * (1 - fadeAmount));
+    image(useFirstBackground ? bg1 : bg2, 0, 0);
+    
+    tint(255, 255 * fadeAmount);
+    image(useFirstBackground ? bg2 : bg1, 0, 0);
+  }
 
   // 中央のオーディオビジュアライザー
   translate(width / 2, height / 2, maxCircleSize);
@@ -236,7 +292,106 @@ void drawWavyCheckerboard() {
   }
 }
 
-// 回転する背景を管理するクラス
+// 中央に向かって流れるアニメーションの背景クラス
+class CenterFlowBackground extends RotatingBackground {
+  
+  CenterFlowBackground(int w, int h) {
+    super(w, h);
+    // 画面の外側から形状を開始するように初期化
+    resetShapesPositions();
+    println("CenterFlowBackground initialized with " + shapes.length + " shapes");
+  }
+  
+  void resetShapesPositions() {
+    for (int i = 0; i < shapes.length; i++) {
+      // 画面の外側にランダムに配置
+      float angle = random(TWO_PI);
+      float distance = random(width * 0.7, width * 1.2);
+      
+      shapes[i].x = width/2 + cos(angle) * distance;
+      shapes[i].y = height/2 + sin(angle) * distance;
+      
+      // 移動速度を形状ごとに設定（多様性を持たせるために広い範囲）
+      shapes[i].moveSpeed = random(MIN_ABSORB_SPEED, MAX_ABSORB_SPEED);
+      
+      // 初期サイズを大きめに設定
+      shapes[i].initialSize = random(150, 450);
+      shapes[i].size = shapes[i].initialSize;
+      
+      // サイズ変更を適用
+      shapes[i].updateVerticesSize();
+      
+      // デバッグ情報
+      println("Shape " + i + " initialized at (" + shapes[i].x + ", " + shapes[i].y + 
+              ") with size " + shapes[i].size + " and speed " + shapes[i].moveSpeed);
+    }
+  }
+
+  // 各形状を更新（回転と移動）
+  void update() {
+    for (BackgroundShape shape : shapes) {
+      // 中央までの距離を計算
+      float distX = width/2 - shape.x;
+      float distY = height/2 - shape.y;
+      float distToCenter = sqrt(distX*distX + distY*distY);
+      
+      // 中央への移動方向を計算
+      if (distToCenter > 0) {
+        float dirX = distX / distToCenter;
+        float dirY = distY / distToCenter;
+        
+        // 移動速度を適用
+        shape.x += dirX * shape.moveSpeed;
+        shape.y += dirY * shape.moveSpeed;
+        
+        // 最大距離を計算（画面対角線の半分より少し大きめ）
+        float maxDist = sqrt(width*width + height*height) * 0.6;
+        
+        // サイズを距離に応じて調整（中央に近いほど小さく）
+        // 注意: map関数は(値, 入力範囲の下限, 入力範囲の上限, 出力範囲の下限, 出力範囲の上限)
+        // 距離が0（中央）では0%になり、最大距離では100%になるようにマッピング
+        float scaleFactor = map(distToCenter, 0, maxDist, 0.0, 1.0);
+        scaleFactor = constrain(scaleFactor, 0.0, 1.0); // 0〜1の範囲に制限
+        shape.size = shape.initialSize * scaleFactor;
+        
+        // デバッグ出力を追加
+        if (frameCount % 30 == 0) { // 30フレームに1回だけログ出力
+          println("Shape at dist=" + distToCenter + ", scale=" + scaleFactor + ", size=" + shape.size);
+        }
+      }
+      
+      // 回転の更新（サイズ変更の後に行う）
+      shape.rotate(radians(shape.rotationSpeed));
+      
+      // サイズ変更を頂点に適用
+      shape.updateVerticesSize();
+      
+      // 中央に到達したら画面外に戻す（しきい値を少し小さく）
+      if (distToCenter < 15) {
+        float angle = random(TWO_PI);
+        float distance = width * (0.8 + random(0.5)); // 画面外へ
+        
+        shape.x = width/2 + cos(angle) * distance;
+        shape.y = height/2 + sin(angle) * distance;
+        shape.size = shape.initialSize; // サイズをリセット
+        shape.updateVerticesSize(); // 頂点を更新
+        
+        println("Shape reset to position (" + shape.x + ", " + shape.y + ") with size " + shape.size);
+      }
+    }
+  }
+  
+  // 形状生成をオーバーライド
+  BackgroundShape createShape(int w, int h) {
+    BackgroundShape shape = new BackgroundShape(w, h);
+    // 移動速度と初期サイズを設定
+    shape.moveSpeed = random(MIN_ABSORB_SPEED, MAX_ABSORB_SPEED);
+    shape.initialSize = shape.size;
+    return shape;
+  }
+}
+
+// RotatingBackgroundクラスを修正して、FlowingShapeを生成できるようにする
 class RotatingBackground {
   int numShapes = 20;
   BackgroundShape[] shapes;
@@ -244,8 +399,13 @@ class RotatingBackground {
   RotatingBackground(int w, int h) {
     shapes = new BackgroundShape[numShapes];
     for (int i = 0; i < numShapes; i++) {
-      shapes[i] = new BackgroundShape(w, h);
+      shapes[i] = createShape(w, h);
     }
+  }
+  
+  // サブクラスでオーバーライド可能な形状生成メソッド
+  BackgroundShape createShape(int w, int h) {
+    return new BackgroundShape(w, h);
   }
   
   void update() {
@@ -266,28 +426,37 @@ class RotatingBackground {
   }
 }
 
+void stop() {
+  player.close();
+  minim.stop();
+  super.stop();
+}
+
 // 個々の背景形状を表すクラス
 class BackgroundShape {
   float x, y;
   float size;
   float rotation;
-  float rotationSpeed; // 各形状の回転速度を追加
+  float rotationSpeed;
+  float moveSpeed;
+  float initialSize;
   color shapeColor;
   float shadowAlpha;
-  PVector[] vertices; // 形状の頂点を保存
+  PVector[] originalVertices; // 元の形状を保存
+  PVector[] vertices; // 現在のスケールで使用する頂点
   
   BackgroundShape(int w, int h) {
     x = random(w);
     y = random(h);
     size = random(50, 300);
+    initialSize = size; // 初期サイズを保存
     rotation = random(TWO_PI);
-    // -0.05〜0.05の範囲でランダムな回転速度を設定
     rotationSpeed = random(-0.05, 0.05);
     
     float alpha = random(100, 200);
     
     // 一定の確率で青を混ぜる
-    if (random(100) < 3) {
+    if (random(100) < 5) {
       shapeColor = color(red(BLUE_COLOR), green(BLUE_COLOR), blue(BLUE_COLOR), alpha);
     } else {
       // 通常はピンク/赤系のグラデーションから選択
@@ -298,23 +467,37 @@ class BackgroundShape {
     
     shadowAlpha = alpha * 0.5;
     
-    // 頂点を生成して保存
+    // 頂点を生成して保存（単位サイズ1.0で正規化）
+    originalVertices = new PVector[10];
     vertices = new PVector[10];
     for (int i = 0; i < vertices.length; i++) {
       float angle = random(TWO_PI);
-      float radius = size * random(0.8, 1.2);
-      vertices[i] = new PVector(cos(angle) * radius, sin(angle) * radius);
+      float radius = random(0.8, 1.2); // 単位半径に対する変動
+      originalVertices[i] = new PVector(cos(angle) * radius, sin(angle) * radius);
+      vertices[i] = new PVector(originalVertices[i].x, originalVertices[i].y); // コピーを作成
+    }
+    
+    // 初期サイズに合わせて頂点を更新
+    updateVerticesSize();
+  }
+  
+  // サイズが変更されたときに頂点を更新
+  void updateVerticesSize() {
+    for (int i = 0; i < vertices.length; i++) {
+      vertices[i].x = originalVertices[i].x * size;
+      vertices[i].y = originalVertices[i].y * size;
     }
   }
   
   void update() {
-    rotate(radians(rotationSpeed)); // 独自の回転速度で回転
+    rotate(radians(rotationSpeed)); // 回転を更新
+    updateVerticesSize(); // サイズに応じて頂点を更新
   }
   
   void rotate(float angle) {
     rotation += angle;
-    if (rotation > TWO_PI) rotation -= TWO_PI; // 角度を0〜TWO_PIの範囲に保つ
-    if (rotation < 0) rotation += TWO_PI; // 負の角度の場合も正規化
+    if (rotation > TWO_PI) rotation -= TWO_PI;
+    if (rotation < 0) rotation += TWO_PI;
   }
   
   void draw(PGraphics pg) {
@@ -338,15 +521,9 @@ class BackgroundShape {
   
   void drawVertices(PGraphics pg) {
     pg.beginShape();
-    for (PVector v : vertices) {
+    for (PVector v : vertices) { // 現在のスケールの頂点を使用
       pg.vertex(v.x, v.y);
     }
     pg.endShape(CLOSE);
   }
-}
-
-void stop() {
-  player.close();
-  minim.stop();
-  super.stop();
 }
