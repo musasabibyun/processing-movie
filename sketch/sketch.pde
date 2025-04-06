@@ -131,7 +131,19 @@ void draw() {
     rotateX(circleRotX[0] + rotationX[i]);
     rotateY(circleRotY[0] + rotationY[i]);
     rotateZ(circleRotZ[0] + rotationZ[i]);
-    stroke(27, 27, 27);
+    
+    float colorProb = random(1);
+    if (colorProb < 0.1) {
+      stroke(0, 0, 0); // 黒色 (10%)
+      
+    } else if (colorProb < 0.2) {
+      stroke(255, 0, 0); // 赤色 (10%)
+    } else if (colorProb < 0.25) {
+      stroke(30, 81, 56); // ピンクの補色(緑色) (5%)
+    } else {
+      stroke(225, 174, 199); // ピンク色 (75%)
+    }
+    
     strokeWeight(random(1, 12));
     ellipse(0, 0, circleSize[i], circleSize[i]);
     popMatrix();
