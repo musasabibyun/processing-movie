@@ -24,8 +24,16 @@ int lastBackgroundChangeTime = 0;
 float fadeAmount = 0;
 boolean fading = false; // フェード中かどうか
 
+// 背景回転速度（度/フレーム）
+float ROTATION_SPEED = 0.05;
+
+// 背景用のPGraphicsオブジェクト
 PGraphics bg1, bg2;
 boolean useFirstBackground = true;
+
+// 回転可能な背景クラス
+RotatingBackground background1;
+RotatingBackground background2;
 
 void setup() {
   size(1920, 1080, P3D);
@@ -57,22 +65,38 @@ void setup() {
     circleSize[i] = 300;
   }
 
-  // 初期背景生成
+  // 背景オブジェクトの初期化
+  background1 = new RotatingBackground(width, height);
+  background2 = new RotatingBackground(width, height);
+  
+  // 背景生成
   bg1 = createGraphics(width, height, P3D);
   bg2 = createGraphics(width, height, P3D);
-  
-  drawBackground(bg1);
-  drawBackground(bg2);
 }
 
 void draw() {
   background(255);
+  
+  // 背景の回転を更新
+  background1.update();
+  background2.update();
+  
+  // 背景を描画
+  background1.draw(bg1);
+  background2.draw(bg2);
   
   int elapsedTime = millis() - lastBackgroundChangeTime;
 
   if (!fading && elapsedTime > backgroundChangeInterval) {
     fading = true; // フェード開始
     lastBackgroundChangeTime = millis(); // 時間をリセット
+    
+    // バックグラウンドの切り替え時に新しい方を再生成
+    if (useFirstBackground) {
+      background2 = new RotatingBackground(width, height);
+    } else {
+      background1 = new RotatingBackground(width, height);
+    }
   }
 
   // フェードが進行する
@@ -83,7 +107,6 @@ void draw() {
     if (fadeAmount >= 1) {
       // フェードが終わったら背景を切り替え
       useFirstBackground = !useFirstBackground;
-      drawBackground(useFirstBackground ? bg2 : bg1); // 新しい背景を生成
       fading = false; // フェード終了
     }
   }
@@ -135,7 +158,6 @@ void draw() {
     float colorProb = random(1);
     if (colorProb < 0.1) {
       stroke(0, 0, 0); // 黒色 (10%)
-      
     } else if (colorProb < 0.2) {
       stroke(255, 0, 0); // 赤色 (10%)
     } else if (colorProb < 0.25) {
@@ -152,47 +174,103 @@ void draw() {
   saveFrame("../frames/######.tga");
 }
 
-void drawBackground(PGraphics bg) {
-  bg.beginDraw();
-  bg.background(255);
+// 回転する背景を管理するクラス
+class RotatingBackground {
+  int numShapes = 20;
+  BackgroundShape[] shapes;
   
-  for (int i = 0; i < 20; i++) {
-    float x = random(width);
-    float y = random(height);
-    float size = random(50, 300);
-    float alpha = random(100, 200);
-    
-    // 影の描画（背景の形を少しずらして描画）
-    bg.fill(50, 50, 50, alpha * 0.5);  // 影の色と透明度を設定
-    bg.noStroke();
-    bg.pushMatrix();
-    bg.translate(x + 10, y + 10); // 少しずらして影を描く
-    bg.rotate(random(TWO_PI));
-    bg.beginShape();
-    for (int j = 0; j < 10; j++) {
-      float angle = random(TWO_PI);
-      float r = size * random(0.8, 1.2);
-      bg.vertex(cos(angle) * r, sin(angle) * r);
+  RotatingBackground(int w, int h) {
+    shapes = new BackgroundShape[numShapes];
+    for (int i = 0; i < numShapes; i++) {
+      shapes[i] = new BackgroundShape(w, h);
     }
-    bg.endShape(CLOSE);
-    bg.popMatrix();
-    
-    // 背景の描画
-    bg.fill(lerpColor(color(220, 50, 50, int(alpha)), color(255, 182, 193, int(alpha)), random(1)));
-    bg.pushMatrix();
-    bg.translate(x, y);
-    bg.rotate(random(TWO_PI));
-    bg.beginShape();
-    for (int j = 0; j < 10; j++) {
-      float angle = random(TWO_PI);
-      float r = size * random(0.8, 1.2);
-      bg.vertex(cos(angle) * r, sin(angle) * r);
-    }
-    bg.endShape(CLOSE);
-    bg.popMatrix();
   }
   
-  bg.endDraw();
+  void update() {
+    for (BackgroundShape shape : shapes) {
+      shape.update(); // 各形状が独自の回転を更新
+    }
+  }
+  
+  void draw(PGraphics pg) {
+    pg.beginDraw();
+    pg.background(255);
+    
+    for (BackgroundShape shape : shapes) {
+      shape.draw(pg);
+    }
+    
+    pg.endDraw();
+  }
+}
+
+// 個々の背景形状を表すクラス
+class BackgroundShape {
+  float x, y;
+  float size;
+  float rotation;
+  float rotationSpeed; // 各形状の回転速度を追加
+  color shapeColor;
+  float shadowAlpha;
+  PVector[] vertices; // 形状の頂点を保存
+  
+  BackgroundShape(int w, int h) {
+    x = random(w);
+    y = random(h);
+    size = random(50, 300);
+    rotation = random(TWO_PI);
+    // -0.05〜0.05の範囲でランダムな回転速度を設定
+    rotationSpeed = random(-0.05, 0.05);
+    
+    float alpha = random(100, 200);
+    shapeColor = lerpColor(color(220, 50, 50, int(alpha)), color(255, 182, 193, int(alpha)), random(1));
+    shadowAlpha = alpha * 0.5;
+    
+    // 頂点を生成して保存
+    vertices = new PVector[10];
+    for (int i = 0; i < vertices.length; i++) {
+      float angle = random(TWO_PI);
+      float radius = size * random(0.8, 1.2);
+      vertices[i] = new PVector(cos(angle) * radius, sin(angle) * radius);
+    }
+  }
+  
+  void update() {
+    rotate(radians(rotationSpeed)); // 独自の回転速度で回転
+  }
+  
+  void rotate(float angle) {
+    rotation += angle;
+    if (rotation > TWO_PI) rotation -= TWO_PI; // 角度を0〜TWO_PIの範囲に保つ
+    if (rotation < 0) rotation += TWO_PI; // 負の角度の場合も正規化
+  }
+  
+  void draw(PGraphics pg) {
+    // 影の描画
+    pg.fill(50, 50, 50, shadowAlpha);
+    pg.noStroke();
+    pg.pushMatrix();
+    pg.translate(x + 10, y + 10); // 少しずらして影を描く
+    pg.rotate(rotation);
+    drawVertices(pg);
+    pg.popMatrix();
+    
+    // 形状の描画
+    pg.fill(shapeColor);
+    pg.pushMatrix();
+    pg.translate(x, y);
+    pg.rotate(rotation);
+    drawVertices(pg);
+    pg.popMatrix();
+  }
+  
+  void drawVertices(PGraphics pg) {
+    pg.beginShape();
+    for (PVector v : vertices) {
+      pg.vertex(v.x, v.y);
+    }
+    pg.endShape(CLOSE);
+  }
 }
 
 void stop() {
