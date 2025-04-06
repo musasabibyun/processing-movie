@@ -71,6 +71,10 @@ float time = 0; // アニメーション用の時間変数
 float MIN_ABSORB_SPEED = 1.5;
 float MAX_ABSORB_SPEED = 10.0;
 
+// 背景形状の数
+int DEFAULT_SHAPE_COUNT = 20;  // アニメーション変更前の形状数
+int INCREASED_SHAPE_COUNT = 50; // アニメーション変更後の形状数
+
 void setup() {
   size(1920, 1080, P3D);
   frameRate(30);
@@ -137,12 +141,12 @@ void draw() {
     flashStartTime = currentTime;
     println("==== Starting flash effect at " + currentTime + "ms ====");
     
-    // 中央に向かうアニメーション用の新しい背景を準備
-    background1 = new CenterFlowBackground(width, height);
-    background2 = new CenterFlowBackground(width, height);
+    // 形状数を増やした中央に向かうアニメーション用の新しい背景を準備
+    background1 = new CenterFlowBackground(width, height, INCREASED_SHAPE_COUNT);
+    background2 = new CenterFlowBackground(width, height, INCREASED_SHAPE_COUNT);
     
     println("==== ANIMATION CHANGED at time: " + currentTime + "ms ====");
-    println("New backgrounds created with center flow animation");
+    println("New backgrounds created with center flow animation and " + INCREASED_SHAPE_COUNT + " shapes");
     
     // 背景を強制的に初期化
     for (BackgroundShape shape : background1.shapes) {
@@ -328,121 +332,19 @@ void drawWavyCheckerboard() {
   }
 }
 
-// 中央に向かって流れるアニメーションの背景クラス
-class CenterFlowBackground extends RotatingBackground {
-  
-  CenterFlowBackground(int w, int h) {
-    super(w, h);
-    // 画面の外側から形状を開始するように初期化
-    resetShapesPositions();
-    println("CenterFlowBackground initialized with " + shapes.length + " shapes");
-  }
-  
-  void resetShapesPositions() {
-    for (int i = 0; i < shapes.length; i++) {
-      // 画面の外側にランダムに配置
-      float angle = random(TWO_PI);
-      float distance = random(width * 0.7, width * 1.2);
-      
-      shapes[i].x = width/2 + cos(angle) * distance;
-      shapes[i].y = height/2 + sin(angle) * distance;
-      
-      // 移動速度を形状ごとに設定（多様性を持たせるために広い範囲）
-      shapes[i].moveSpeed = random(MIN_ABSORB_SPEED, MAX_ABSORB_SPEED);
-      
-      // 回転速度を強化
-      shapes[i].rotationSpeed = random(-0.2, 0.2);
-      
-      // 初期サイズを大きめに設定
-      shapes[i].initialSize = random(150, 450);
-      shapes[i].size = shapes[i].initialSize;
-      
-      // サイズ変更を適用
-      shapes[i].updateVerticesSize();
-      
-      // デバッグ情報
-      println("Shape " + i + " initialized at (" + shapes[i].x + ", " + shapes[i].y + 
-              ") with size " + shapes[i].size + " and speed " + shapes[i].moveSpeed);
-    }
-  }
-
-  // 各形状を更新（回転と移動）
-  void update() {
-    for (BackgroundShape shape : shapes) {
-      // 回転処理の強化 - 回転速度を増加
-      float rotationAmount = radians(shape.rotationSpeed * 3); // 回転速度を3倍に
-      shape.rotate(rotationAmount);
-      if (frameCount % 120 == 0) {
-        println("Shape rotation speed: " + shape.rotationSpeed + ", current angle: " + degrees(shape.rotation));
-      }
-      
-      // 中央までの距離を計算
-      float distX = width/2 - shape.x;
-      float distY = height/2 - shape.y;
-      float distToCenter = sqrt(distX*distX + distY*distY);
-      
-      // 中央への移動方向を計算
-      if (distToCenter > 0) {
-        float dirX = distX / distToCenter;
-        float dirY = distY / distToCenter;
-        
-        // 移動速度を適用
-        shape.x += dirX * shape.moveSpeed;
-        shape.y += dirY * shape.moveSpeed;
-        
-        // 最大距離を計算（画面対角線の半分より少し大きめ）
-        float maxDist = sqrt(width*width + height*height) * 0.6;
-        
-        // サイズを距離に応じて調整（中央に近いほど小さく）
-        float scaleFactor = map(distToCenter, 0, maxDist, 0.0, 1.0);
-        scaleFactor = constrain(scaleFactor, 0.0, 1.0); // 0〜1の範囲に制限
-        shape.size = shape.initialSize * scaleFactor;
-        
-        // デバッグ出力
-        if (frameCount % 60 == 0) { // ログ頻度を下げる
-          println("Shape at dist=" + nf(distToCenter, 0, 1) + 
-                  ", rot=" + nf(degrees(shape.rotation), 0, 1) + 
-                  "°, speed=" + nf(shape.rotationSpeed, 0, 2));
-        }
-      }
-      
-      // サイズ変更を頂点に適用
-      shape.updateVerticesSize();
-      
-      // 中央に到達したら画面外に戻す
-      if (distToCenter < 15) {
-        float angle = random(TWO_PI);
-        float distance = width * (0.8 + random(0.5)); // 画面外へ
-        
-        shape.x = width/2 + cos(angle) * distance;
-        shape.y = height/2 + sin(angle) * distance;
-        shape.size = shape.initialSize; // サイズをリセット
-        
-        // 回転速度をランダムに再設定（常に新しい回転を適用）
-        shape.rotationSpeed = random(-0.2, 0.2);
-        
-        shape.updateVerticesSize(); // 頂点を更新
-        println("Shape reset with new rotation speed: " + shape.rotationSpeed);
-      }
-    }
-  }
-  
-  // 形状生成をオーバーライド
-  BackgroundShape createShape(int w, int h) {
-    BackgroundShape shape = new BackgroundShape(w, h);
-    // 移動速度と初期サイズを設定
-    shape.moveSpeed = random(MIN_ABSORB_SPEED, MAX_ABSORB_SPEED);
-    shape.initialSize = shape.size;
-    return shape;
-  }
-}
-
-// RotatingBackgroundクラスを修正して、FlowingShapeを生成できるようにする
+// RotatingBackgroundクラスを修正して、形状数を指定できるようにする
 class RotatingBackground {
-  int numShapes = 20;
+  int numShapes = DEFAULT_SHAPE_COUNT; // デフォルトの形状数
   BackgroundShape[] shapes;
   
+  // 形状数を指定せずにコンストラクタを呼ぶとデフォルト値を使用
   RotatingBackground(int w, int h) {
+    this(w, h, DEFAULT_SHAPE_COUNT); // 定数を使用
+  }
+  
+  // 形状数を指定できるコンストラクタを追加
+  RotatingBackground(int w, int h, int shapeCount) {
+    numShapes = shapeCount;
     shapes = new BackgroundShape[numShapes];
     for (int i = 0; i < numShapes; i++) {
       shapes[i] = createShape(w, h);
@@ -583,5 +485,122 @@ class BackgroundShape {
       pg.vertex(v.x, v.y);
     }
     pg.endShape(CLOSE);
+  }
+}
+
+// 中央に向かって流れるアニメーションの背景クラス
+class CenterFlowBackground extends RotatingBackground {
+  
+  CenterFlowBackground(int w, int h) {
+    super(w, h);
+    // 画面の外側から形状を開始するように初期化
+    resetShapesPositions();
+    println("CenterFlowBackground initialized with " + shapes.length + " shapes");
+  }
+  
+  // 形状数を指定できるコンストラクタを追加
+  CenterFlowBackground(int w, int h, int shapeCount) {
+    super(w, h, shapeCount);
+    // 画面の外側から形状を開始するように初期化
+    resetShapesPositions();
+    println("CenterFlowBackground initialized with " + shapes.length + " shapes");
+  }
+  
+  void resetShapesPositions() {
+    for (int i = 0; i < shapes.length; i++) {
+      // 画面の外側にランダムに配置
+      float angle = random(TWO_PI);
+      float distance = random(width * 0.7, width * 1.2);
+      
+      shapes[i].x = width/2 + cos(angle) * distance;
+      shapes[i].y = height/2 + sin(angle) * distance;
+      
+      // 移動速度を形状ごとに設定（多様性を持たせるために広い範囲）
+      shapes[i].moveSpeed = random(MIN_ABSORB_SPEED, MAX_ABSORB_SPEED);
+      
+      // 回転速度を強化
+      shapes[i].rotationSpeed = random(-0.2, 0.2);
+      
+      // 初期サイズを大きめに設定
+      shapes[i].initialSize = random(150, 450);
+      shapes[i].size = shapes[i].initialSize;
+      
+      // サイズ変更を適用
+      shapes[i].updateVerticesSize();
+      
+      // デバッグ情報
+      println("Shape " + i + " initialized at (" + shapes[i].x + ", " + shapes[i].y + 
+              ") with size " + shapes[i].size + " and speed " + shapes[i].moveSpeed);
+    }
+  }
+
+  // 各形状を更新（回転と移動）
+  void update() {
+    for (BackgroundShape shape : shapes) {
+      // 回転処理の強化 - 回転速度を増加
+      float rotationAmount = radians(shape.rotationSpeed * 3); // 回転速度を3倍に
+      shape.rotate(rotationAmount);
+      if (frameCount % 120 == 0) {
+        println("Shape rotation speed: " + shape.rotationSpeed + ", current angle: " + degrees(shape.rotation));
+      }
+      
+      // 中央までの距離を計算
+      float distX = width/2 - shape.x;
+      float distY = height/2 - shape.y;
+      float distToCenter = sqrt(distX*distX + distY*distY);
+      
+      // 中央への移動方向を計算
+      if (distToCenter > 0) {
+        float dirX = distX / distToCenter;
+        float dirY = distY / distToCenter;
+        
+        // 移動速度を適用
+        shape.x += dirX * shape.moveSpeed;
+        shape.y += dirY * shape.moveSpeed;
+        
+        // 最大距離を計算（画面対角線の半分より少し大きめ）
+        float maxDist = sqrt(width*width + height*height) * 0.6;
+        
+        // サイズを距離に応じて調整（中央に近いほど小さく）
+        float scaleFactor = map(distToCenter, 0, maxDist, 0.1, 1.0);
+        scaleFactor = constrain(scaleFactor, 0.0, 1.0); // 0〜1の範囲に制限
+        shape.size = shape.initialSize * scaleFactor;
+        
+        // デバッグ出力
+        if (frameCount % 60 == 0) { // ログ頻度を下げる
+          println("Shape at dist=" + nf(distToCenter, 0, 1) + 
+                  ", rot=" + nf(degrees(shape.rotation), 0, 1) + 
+                  "°, speed=" + nf(shape.rotationSpeed, 0, 2));
+        }
+      }
+      
+      // サイズ変更を頂点に適用
+      shape.updateVerticesSize();
+      
+      // 中央に到達したら画面外に戻す
+      if (distToCenter < 15) {
+        float angle = random(TWO_PI);
+        float distance = width * (0.8 + random(0.5)); // 画面外へ
+        
+        shape.x = width/2 + cos(angle) * distance;
+        shape.y = height/2 + sin(angle) * distance;
+        shape.size = shape.initialSize; // サイズをリセット
+        
+        // 回転速度をランダムに再設定（常に新しい回転を適用）
+        shape.rotationSpeed = random(-0.2, 0.2);
+        
+        shape.updateVerticesSize(); // 頂点を更新
+        println("Shape reset with new rotation speed: " + shape.rotationSpeed);
+      }
+    }
+  }
+  
+  // 形状生成をオーバーライド
+  BackgroundShape createShape(int w, int h) {
+    BackgroundShape shape = new BackgroundShape(w, h);
+    // 移動速度と初期サイズを設定
+    shape.moveSpeed = random(MIN_ABSORB_SPEED, MAX_ABSORB_SPEED);
+    shape.initialSize = shape.size;
+    return shape;
   }
 }
